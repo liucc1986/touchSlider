@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>触摸轮播</title>
+<style>
+*{ margin:0; padding:0; list-style:none;}
+body{height: 3000px;}
+#box{ width:100%; margin:10px auto; position:relative; height:148px; overflow:hidden;}
+#box ul{ position:absolute; left:0; top:0;}
+#box ul li{ width:320px; height:148px; float:left;}
+#box ol{ width:80px;  position:absolute; bottom:0; right:20px; }
+#box ol li{ width:10px; height:10px; background:#000; border-radius:50%; margin:3px; text-indent:-9999px; float:left;}
+#box ol li.on{ background:#f00;}
+</style>
+<script>
+!(function(){
+	document.addEventListener('DOMContentLoaded',function(){
+	//调用参数说明：第一个为外层容器选择器（必选），第二个为可选项，json中的各项也都是可选项，timeout：每个多少毫秒动一下（默认4000），scale：图片宽高比（防止拉伸变形，默认480/140,你可以根据你的图片宽高比自行设置）,speed：滑一下用时（默认400），auto：是否自动播放，默认是true。
+	touchSlider('#box',{timeout:2000,scale:480/150,speed:500,auto:false});
+	function touchSlider(selector,options){
+		var oBox=document.querySelector(selector);
+		var oUl=oBox.children[0];
+		var aLi=oUl.children;
+		var aBtn=oBox.querySelectorAll('ol li');
+		var W;
+		var winW;
+		var translateX=0;
+		var translateY=0;
+		var canMove=false;
+		var iNow=0;
+		var play;
+		var fx;
+		var options= options || {};
+		var timeout=options.timeout || 4000;
+		var speed=options.speed || 400;
+		var auto=(options.auto!=undefined) ? options.auto : true;
+		var scale=options.scale || 480/140;
+		oUl.innerHTML+=oUl.innerHTML;
+		setSize();
+		window.addEventListener('resize', setSize, false);
+		function setSize(){
+			winW=document.documentElement.clientWidth;
+			document.title=winW;
+			var newHeight=winW/scale;
+			for (var i = 0; i < aLi.length; i++) {
+				oBox.style.height=newHeight+'px';
+				aLi[i].style.cssText='width:'+winW+'px;height:'+newHeight+'px;';
+				aLi[i].querySelector('img').style.cssText='width:'+winW+'px;height:'+newHeight+'px;';
+			}
+			oUl.style.width=winW*aLi.length+'px';
+			W=oUl.offsetWidth/2;
+			tab();
+	        translateX = -iNow * winW;
+	        fnTranslateX(translateX);
+		}
+		function autoPlay(){
+			fx?iNow--:iNow++;
+			tab();
+			startMove(-iNow * winW);
+		}
+		play=auto?setInterval(autoPlay,timeout):null;
+		oUl.addEventListener('touchstart',function(ev){
+			clearInterval(oUl.timer);
+			clearInterval(play);
+			var disX=ev.targetTouches[0].pageX-translateX;
+			var downX=ev.targetTouches[0].pageX;
+			var downY=ev.targetTouches[0].pageY;
+			var downTime=new Date().getTime();
+			function fnMove(ev){
+				console.log(canMove);
+				if (canMove) {
+					translateX=ev.targetTouches[0].pageX-disX;
+					if(translateX<0){
+						oUl.style.WebkitTransform='translateX('+translateX%W+'px)';
+					}else{
+						oUl.style.WebkitTransform='translateX('+(translateX%W-W)%W+'px)';
+					}
+				}else{
+					console.log(ev.targetTouches[0].pageY+'---'+downY)
+					if(new Date().getTime()-downTime>70){
+						if (Math.abs(ev.targetTouches[0].pageY-downY)>10) {
+							canMove=false;
+						}else{
+							canMove=true;
+						}
+					}
+					
+				}
+				
+				
+			}
+			function fnEnd(ev){
+				
+				oUl.removeEventListener('touchmove',fnMove,false);
+				oUl.removeEventListener('touchend',fnEnd,false);
+				
+				
+				if(!canMove)return;
+				if(Math.abs(ev.changedTouches[0].pageX-downX)>10){
+					if(downX>ev.changedTouches[0].pageX){
+						iNow++;	
+						fx=false;
+						startMove(-iNow*aLi[0].offsetWidth);
+						tab();
+						play=auto?setInterval(autoPlay,timeout):null;
+					}else{
+						iNow--;	
+						fx=true;
+						startMove(-iNow*aLi[0].offsetWidth);
+						tab();
+						play=auto?setInterval(autoPlay,timeout):null;
+					}
+				}else{
+					startMove(-iNow*aLi[0].offsetWidth);
+					play=auto?setInterval(autoPlay,timeout):null;
+				}
+					canMove=false;
+			}
+			oUl.addEventListener('touchmove',fnMove,false);
+			oUl.addEventListener('touchend',fnEnd,false);
+			// ev.preventDefault();
+		},false);
+		function tab(){
+			for(var i=0; i<aBtn.length; i++){
+				aBtn[i].className='';
+			}
+			if(iNow>0){
+				aBtn[iNow%aBtn.length].className='on';	
+			}else{
+				aBtn[(iNow%aBtn.length+aBtn.length)%aBtn.length].className='on';	
+			}
+		}
+		function fnTranslateX(){
+			oUl.style.WebkitTransform=translateX<0?'translateX('+translateX%W+'px)':'translateX('+(translateX%W-W)%W+'px)';
+		}
+		function startMove(iTarget){
+			var dis=iTarget-translateX;
+			var start=translateX;
+			var count=parseInt(speed/30);
+			var n=0;
+			clearInterval(oUl.timer);
+			oUl.timer=setInterval(function(){
+				n++
+				var a=1-n/count;
+				translateX=start+dis*(1-a*a*a);
+				fnTranslateX();
+				if (n==count) {
+					clearInterval(oUl.timer)
+				};
+			},30);
+		}
+	}
+},false);
+})()
+
+</script>
+</head>
+
+<body>
+<div id="box">
+	<ul>
+		<li><a href="http://www.baidu.com"><img src="img/1.jpg"></a></li>
+    	<li><img src="img/2.jpg"></li>
+        <li><img src="img/3.jpg"></li>
+        <li><img src="img/4.jpg"></li>
+        <li><img src="img/5.jpg"></li>
+    </ul>
+    <ol>
+    	<li class="on">1</li>
+    	<li>2</li>
+    	<li>3</li>
+    	<li>4</li>
+    	<li></li>
+    </ol>
+</div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
